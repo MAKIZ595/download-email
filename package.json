@@ -1,0 +1,17 @@
+{
+  "name": "shopify-download-email",
+  "version": "1.0.0",
+  "description": "Send download emails to customers after purchase",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0",
+    "nodemailer": "^6.9.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
