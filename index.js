@@ -1,5 +1,4 @@
 const express = require('express');
-const nodemailer = require('nodemailer');
 const fetch = require('node-fetch');
 
 const app = express();
@@ -9,28 +8,12 @@ const PORT = process.env.PORT || 3000;
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-// Email Config (Strato)
-const EMAIL_HOST = 'smtp.strato.de';
-const EMAIL_PORT = 587;
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
+// Resend Config
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const EMAIL_FROM = process.env.EMAIL_FROM || 'info@songkauf.de';
 const SHOP_NAME = 'songkauf.de';
 
 app.use(express.json());
-
-// Email transporter
-const transporter = nodemailer.createTransport({
-  host: EMAIL_HOST,
-  port: EMAIL_PORT,
-  secure: false,
-  requireTLS: true,
-  auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000
-});
 
 // GraphQL helper
 async function shopifyGraphQL(query, variables = {}) {
@@ -66,7 +49,7 @@ async function getDownloadLink(variantId) {
   return result.data?.productVariant;
 }
 
-// Send download email
+// Send download email via Resend
 async function sendDownloadEmail(customerEmail, customerName, downloads) {
   // Build download list HTML
   let downloadListHtml = '';
@@ -102,7 +85,7 @@ async function sendDownloadEmail(customerEmail, customerName, downloads) {
       </div>
 
       <div style="padding: 30px 0;">
-        <h2 style="color: #000;">Dein Download ist bereit! 🎵</h2>
+        <h2 style="color: #000;">Dein Download ist bereit!</h2>
 
         <p>Hallo ${customerName || 'Kunde'},</p>
 
@@ -121,7 +104,7 @@ async function sendDownloadEmail(customerEmail, customerName, downloads) {
         </table>
 
         <p style="background-color: #f8f8f8; padding: 15px; border-radius: 5px;">
-          <strong>Hinweis:</strong> Die Download-Links sind dauerhaft gültig. Bei Problemen kontaktiere uns unter ${EMAIL_USER}
+          <strong>Hinweis:</strong> Die Download-Links sind dauerhaft gültig. Bei Problemen kontaktiere uns unter ${EMAIL_FROM}
         </p>
       </div>
 
@@ -143,21 +126,35 @@ Hallo ${customerName || 'Kunde'},
 vielen Dank für deinen Einkauf! Hier sind deine Downloads:
 ${downloadListText}
 
-Bei Problemen kontaktiere uns unter ${EMAIL_USER}
+Bei Problemen kontaktiere uns unter ${EMAIL_FROM}
 
 Viel Spaß mit deinem Kauf!
 ${SHOP_NAME}
   `;
 
-  const mailOptions = {
-    from: `"${SHOP_NAME}" <${EMAIL_USER}>`,
-    to: customerEmail,
-    subject: `Dein Download von ${SHOP_NAME} 🎵`,
-    text: textContent,
-    html: htmlContent
-  };
+  // Send via Resend API
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: `${SHOP_NAME} <${EMAIL_FROM}>`,
+      to: customerEmail,
+      subject: `Dein Download von ${SHOP_NAME}`,
+      html: htmlContent,
+      text: textContent
+    }),
+  });
 
-  return await transporter.sendMail(mailOptions);
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Failed to send email');
+  }
+
+  return result;
 }
 
 // Health check
@@ -166,7 +163,7 @@ app.get('/', (req, res) => {
     status: 'running',
     message: 'Download Email App is active',
     store: SHOPIFY_STORE ? 'configured' : 'not configured',
-    email: EMAIL_USER ? 'configured' : 'not configured'
+    email: RESEND_API_KEY ? 'configured' : 'not configured'
   });
 });
 
@@ -293,11 +290,11 @@ app.post('/webhooks/orders-create', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
-║        Download Email App Started                          ║
+║        Download Email App Started (Resend)                 ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Port: ${PORT}                                               ║
 ║  Store: ${SHOPIFY_STORE || 'NOT CONFIGURED'}
-║  Email: ${EMAIL_USER || 'NOT CONFIGURED'}
+║  Email: ${EMAIL_FROM}
 ║                                                            ║
 ║  Webhooks:                                                 ║
 ║  - POST /webhooks/orders-paid                              ║
