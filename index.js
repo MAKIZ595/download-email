@@ -81,7 +81,7 @@ async function sendDownloadEmail(customerEmail, customerName, downloads) {
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #000;">
-        <h1 style="margin: 0; font-size: 24px;">${SHOP_NAME}</h1>
+        <img src="https://www.dropbox.com/scl/fi/782zd3vwnkksb0x03mmw1/songkauf-png.png?rlkey=g7k6828l41cuvxxpmwgyz0z9g&raw=1" alt="${SHOP_NAME}" style="max-width: 200px; height: auto;">
       </div>
 
       <div style="padding: 30px 0;">
@@ -104,7 +104,7 @@ async function sendDownloadEmail(customerEmail, customerName, downloads) {
         </table>
 
         <p style="background-color: #f8f8f8; padding: 15px; border-radius: 5px;">
-          <strong>Hinweis:</strong> Die Download-Links sind dauerhaft gültig. Bei Problemen kontaktiere uns unter ${EMAIL_FROM}
+          <strong>Hinweis:</strong> Der Download-Link ist 30 Tage verfügbar, vergiss nicht deine Dateien herunterzuladen. Bei Problemen kontaktiere uns unter info@songkauf.de
         </p>
       </div>
 
@@ -126,7 +126,7 @@ Hallo ${customerName || 'Kunde'},
 vielen Dank für deinen Einkauf! Hier sind deine Downloads:
 ${downloadListText}
 
-Bei Problemen kontaktiere uns unter ${EMAIL_FROM}
+Hinweis: Der Download-Link ist 30 Tage verfügbar, vergiss nicht deine Dateien herunterzuladen. Bei Problemen kontaktiere uns unter info@songkauf.de
 
 Viel Spaß mit deinem Kauf!
 ${SHOP_NAME}
