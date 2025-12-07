@@ -8,8 +8,8 @@ const PORT = process.env.PORT || 3000;
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-// Resend Config
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
+// Brevo Config
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'info@songkauf.de';
 const SHOP_NAME = 'songkauf.de';
 
@@ -49,7 +49,7 @@ async function getDownloadLink(variantId) {
   return result.data?.productVariant;
 }
 
-// Send download email via Resend
+// Send download email via Brevo
 async function sendDownloadEmail(customerEmail, customerName, downloads) {
   // Build download list HTML
   let downloadListHtml = '';
@@ -132,26 +132,32 @@ Viel Spaß mit deinem Kauf!
 ${SHOP_NAME}
   `;
 
-  // Send via Resend API
-  const response = await fetch('https://api.resend.com/emails', {
+  // Send via Brevo API
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'api-key': BREVO_API_KEY,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: `${SHOP_NAME} <${EMAIL_FROM}>`,
-      to: customerEmail,
+      sender: {
+        name: SHOP_NAME,
+        email: EMAIL_FROM
+      },
+      to: [{
+        email: customerEmail,
+        name: customerName || 'Kunde'
+      }],
       subject: `Dein Download von ${SHOP_NAME}`,
-      html: htmlContent,
-      text: textContent
+      htmlContent: htmlContent,
+      textContent: textContent
     }),
   });
 
   const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(result.message || 'Failed to send email');
+    throw new Error(result.message || JSON.stringify(result));
   }
 
   return result;
@@ -163,7 +169,7 @@ app.get('/', (req, res) => {
     status: 'running',
     message: 'Download Email App is active',
     store: SHOPIFY_STORE ? 'configured' : 'not configured',
-    email: RESEND_API_KEY ? 'configured' : 'not configured'
+    email: BREVO_API_KEY ? 'configured' : 'not configured'
   });
 });
 
@@ -290,7 +296,7 @@ app.post('/webhooks/orders-create', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
-║        Download Email App Started (Resend)                 ║
+║        Download Email App Started (Brevo)                  ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Port: ${PORT}                                               ║
 ║  Store: ${SHOPIFY_STORE || 'NOT CONFIGURED'}
