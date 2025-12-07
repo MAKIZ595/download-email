@@ -167,12 +167,18 @@ app.get('/', (req, res) => {
   });
 });
 
-// Webhook: Order paid
+// Webhook: Order paid (works with multiple webhook topics)
 app.post('/webhooks/orders-paid', async (req, res) => {
   console.log('\n>>> Received orders/paid webhook');
   res.status(200).send('OK');
 
   const order = req.body;
+
+  // Skip if order is not paid (for orders/create webhook)
+  if (order.financial_status && order.financial_status !== 'paid') {
+    console.log(`Order not paid yet (status: ${order.financial_status}), skipping...`);
+    return;
+  }
 
   const customerEmail = order.email;
   const customerName = order.customer?.first_name || order.billing_address?.first_name || '';
@@ -224,6 +230,62 @@ app.post('/webhooks/orders-paid', async (req, res) => {
   }
 });
 
+// Webhook: Orders Create (alternative endpoint)
+app.post('/webhooks/orders-create', async (req, res) => {
+  console.log('\n>>> Received orders/create webhook');
+  res.status(200).send('OK');
+
+  const order = req.body;
+
+  // Only process paid orders
+  if (order.financial_status !== 'paid') {
+    console.log(`Order not paid yet (status: ${order.financial_status}), waiting for payment...`);
+    return;
+  }
+
+  const customerEmail = order.email;
+  const customerName = order.customer?.first_name || order.billing_address?.first_name || '';
+
+  if (!customerEmail) {
+    console.log('No customer email found');
+    return;
+  }
+
+  console.log(`Processing order for: ${customerEmail}`);
+
+  const downloads = [];
+
+  for (const item of order.line_items || []) {
+    const variantId = item.variant_id;
+    if (!variantId) continue;
+
+    console.log(`Checking variant ${variantId}...`);
+    const variantGid = `gid://shopify/ProductVariant/${variantId}`;
+    const variantData = await getDownloadLink(variantGid);
+
+    if (variantData?.metafield?.value) {
+      console.log(`Found download link for "${variantData.product.title} - ${variantData.title}"`);
+      downloads.push({
+        productTitle: variantData.product.title,
+        variantTitle: variantData.title,
+        downloadLink: variantData.metafield.value
+      });
+    }
+  }
+
+  if (downloads.length > 0) {
+    try {
+      console.log(`Sending email with ${downloads.length} download(s) to ${customerEmail}...`);
+      await sendDownloadEmail(customerEmail, customerName, downloads);
+      console.log('Email sent successfully!');
+    } catch (error) {
+      console.error('Error sending email:', error.message);
+    }
+  } else {
+    console.log('No downloads found in this order');
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`
@@ -234,7 +296,9 @@ app.listen(PORT, () => {
 ║  Store: ${SHOPIFY_STORE || 'NOT CONFIGURED'}
 ║  Email: ${EMAIL_USER || 'NOT CONFIGURED'}
 ║                                                            ║
-║  Webhook: POST /webhooks/orders-paid                       ║
+║  Webhooks:                                                 ║
+║  - POST /webhooks/orders-paid                              ║
+║  - POST /webhooks/orders-create                            ║
 ║  Health:  GET /                                            ║
 ╚════════════════════════════════════════════════════════════╝
   `);
