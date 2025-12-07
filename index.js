@@ -11,7 +11,7 @@ const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
 // Email Config (Strato)
 const EMAIL_HOST = 'smtp.strato.de';
-const EMAIL_PORT = 465;
+const EMAIL_PORT = 587;
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 const SHOP_NAME = 'songkauf.de';
@@ -22,11 +22,14 @@ app.use(express.json());
 const transporter = nodemailer.createTransport({
   host: EMAIL_HOST,
   port: EMAIL_PORT,
-  secure: true,
+  secure: false,
+  requireTLS: true,
   auth: {
     user: EMAIL_USER,
     pass: EMAIL_PASS
-  }
+  },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000
 });
 
 // GraphQL helper
