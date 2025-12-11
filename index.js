@@ -40,6 +40,7 @@ Ohne ausdrückliche, schriftliche Zustimmung des Autors ist es nicht erlaubt:
 3. Urheberrecht / GEMA
 Der ursprüngliche Autor des Songtexts bleibt verpflichtend als Songwriter bei der GEMA (oder anderen Verwertungsgesellschaften) eingetragen, sofern das Werk dort angemeldet wird.
 Eine vollständige Übertragung der Urheberrechte findet nicht statt.
+Die vollständigen Angaben zu den bei der GEMA einzutragenden Urhebern befinden sich in der beigefügten Downloaddatei.
 
 4. Digitaler Download & Widerruf
 Da es sich um ein digitales Produkt handelt, erlischt das Widerrufsrecht, sobald der Käufer den Download begonnen hat.
@@ -80,6 +81,7 @@ Ohne vorherige schriftliche Zustimmung der Urheber ist es nicht erlaubt:
 Der ursprüngliche Songwriter bleibt verpflichtend als Urheber bei einer möglichen GEMA-Anmeldung eingetragen.
 Der Beat-Produzent bleibt ebenfalls als Urheber seines Beats einzutragen.
 Es findet keine Übertragung des Urheberrechts statt – lediglich Nutzungsrechte werden eingeräumt.
+Die vollständigen Angaben zu den bei der GEMA einzutragenden Urhebern befinden sich in der beigefügten Downloaddatei.
 
 4. Exklusivität
 Der Songtext wird ab dem Kauf sofort aus dem Verkauf genommen und nicht erneut an andere Kunden verkauft.
