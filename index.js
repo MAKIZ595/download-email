@@ -319,6 +319,59 @@ async function getDownloadLink(variantId) {
   return result.data?.productVariant;
 }
 
+// Fetch metaobjects by their IDs
+async function fetchMetaobjects(ids) {
+  if (!ids || ids.length === 0) return [];
+
+  const query = `
+    query getMetaobjects($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Metaobject {
+          id
+          fields {
+            key
+            value
+          }
+        }
+      }
+    }
+  `;
+
+  const result = await shopifyGraphQL(query, { ids });
+  console.log('Metaobjects fetch result:', JSON.stringify(result, null, 2));
+
+  if (!result.data?.nodes) return [];
+
+  return result.data.nodes.map(node => {
+    if (!node?.fields) return null;
+    const fields = {};
+    node.fields.forEach(field => {
+      fields[field.key] = field.value;
+    });
+    return fields;
+  }).filter(Boolean);
+}
+
+// Helper function to parse metaobject IDs from metafield value
+function parseMetaobjectIds(metafieldData) {
+  if (!metafieldData?.value) return [];
+
+  try {
+    // Check if it's a JSON array (list type)
+    if (metafieldData.value.startsWith('[')) {
+      return JSON.parse(metafieldData.value);
+    }
+    // Single GID
+    if (metafieldData.value.startsWith('gid://')) {
+      return [metafieldData.value];
+    }
+  } catch (e) {
+    console.error('Error parsing metaobject IDs:', e.message);
+  }
+
+  return [];
+}
+
 // Helper function to parse metaobject authors (supports both single reference and list)
 function parseAuthors(metafieldData) {
   if (!metafieldData) return [];
@@ -571,12 +624,29 @@ app.post('/webhooks/orders-paid', async (req, res) => {
       console.log('  Raw songwriter metafield:', JSON.stringify(variantData.product.songwriter, null, 2));
       console.log('  Raw beatProduzent metafield:', JSON.stringify(variantData.product.beatProduzent, null, 2));
 
-      // Parse authors from metaobjects
-      const songwriters = parseAuthors(variantData.product.songwriter);
-      const beatProduzenten = parseAuthors(variantData.product.beatProduzent);
+      // Try to parse authors from references first, then fallback to fetching by IDs
+      let songwriters = parseAuthors(variantData.product.songwriter);
+      let beatProduzenten = parseAuthors(variantData.product.beatProduzent);
 
-      console.log(`  Parsed Songwriters: ${songwriters.length}`, songwriters);
-      console.log(`  Parsed Beat-Produzenten: ${beatProduzenten.length}`, beatProduzenten);
+      // If references are null but value contains IDs, fetch metaobjects directly
+      if (songwriters.length === 0 && variantData.product.songwriter?.value) {
+        console.log('  Songwriters references null, fetching by IDs...');
+        const songwriterIds = parseMetaobjectIds(variantData.product.songwriter);
+        if (songwriterIds.length > 0) {
+          songwriters = await fetchMetaobjects(songwriterIds);
+        }
+      }
+
+      if (beatProduzenten.length === 0 && variantData.product.beatProduzent?.value) {
+        console.log('  Beat-Produzenten references null, fetching by IDs...');
+        const beatProduzentIds = parseMetaobjectIds(variantData.product.beatProduzent);
+        if (beatProduzentIds.length > 0) {
+          beatProduzenten = await fetchMetaobjects(beatProduzentIds);
+        }
+      }
+
+      console.log(`  Final Songwriters: ${songwriters.length}`, songwriters);
+      console.log(`  Final Beat-Produzenten: ${beatProduzenten.length}`, beatProduzenten);
 
       downloads.push({
         productTitle: variantData.product.title,
@@ -646,12 +716,29 @@ app.post('/webhooks/orders-create', async (req, res) => {
       console.log('  Raw songwriter metafield:', JSON.stringify(variantData.product.songwriter, null, 2));
       console.log('  Raw beatProduzent metafield:', JSON.stringify(variantData.product.beatProduzent, null, 2));
 
-      // Parse authors from metaobjects
-      const songwriters = parseAuthors(variantData.product.songwriter);
-      const beatProduzenten = parseAuthors(variantData.product.beatProduzent);
+      // Try to parse authors from references first, then fallback to fetching by IDs
+      let songwriters = parseAuthors(variantData.product.songwriter);
+      let beatProduzenten = parseAuthors(variantData.product.beatProduzent);
 
-      console.log(`  Parsed Songwriters: ${songwriters.length}`, songwriters);
-      console.log(`  Parsed Beat-Produzenten: ${beatProduzenten.length}`, beatProduzenten);
+      // If references are null but value contains IDs, fetch metaobjects directly
+      if (songwriters.length === 0 && variantData.product.songwriter?.value) {
+        console.log('  Songwriters references null, fetching by IDs...');
+        const songwriterIds = parseMetaobjectIds(variantData.product.songwriter);
+        if (songwriterIds.length > 0) {
+          songwriters = await fetchMetaobjects(songwriterIds);
+        }
+      }
+
+      if (beatProduzenten.length === 0 && variantData.product.beatProduzent?.value) {
+        console.log('  Beat-Produzenten references null, fetching by IDs...');
+        const beatProduzentIds = parseMetaobjectIds(variantData.product.beatProduzent);
+        if (beatProduzentIds.length > 0) {
+          beatProduzenten = await fetchMetaobjects(beatProduzentIds);
+        }
+      }
+
+      console.log(`  Final Songwriters: ${songwriters.length}`, songwriters);
+      console.log(`  Final Beat-Produzenten: ${beatProduzenten.length}`, beatProduzenten);
 
       downloads.push({
         productTitle: variantData.product.title,
