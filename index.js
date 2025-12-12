@@ -288,6 +288,14 @@ async function getDownloadLink(variantId) {
   `;
 
   const result = await shopifyGraphQL(query, { id: variantId });
+
+  // Debug: Log full GraphQL response
+  console.log('GraphQL Response:', JSON.stringify(result, null, 2));
+
+  if (result.errors) {
+    console.error('GraphQL Errors:', result.errors);
+  }
+
   return result.data?.productVariant;
 }
 
@@ -523,11 +531,16 @@ app.post('/webhooks/orders-paid', async (req, res) => {
     if (variantData?.metafield?.value) {
       console.log(`Found download link for "${variantData.product.title} - ${variantData.title}"`);
 
+      // Debug: Log raw metafield data
+      console.log('  Raw songwriter metafield:', JSON.stringify(variantData.product.songwriter, null, 2));
+      console.log('  Raw beatProduzent metafield:', JSON.stringify(variantData.product.beatProduzent, null, 2));
+
       // Parse authors from metaobjects
       const songwriters = parseAuthors(variantData.product.songwriter);
       const beatProduzenten = parseAuthors(variantData.product.beatProduzent);
 
-      console.log(`  Songwriters: ${songwriters.length}, Beat-Produzenten: ${beatProduzenten.length}`);
+      console.log(`  Parsed Songwriters: ${songwriters.length}`, songwriters);
+      console.log(`  Parsed Beat-Produzenten: ${beatProduzenten.length}`, beatProduzenten);
 
       downloads.push({
         productTitle: variantData.product.title,
@@ -593,11 +606,16 @@ app.post('/webhooks/orders-create', async (req, res) => {
     if (variantData?.metafield?.value) {
       console.log(`Found download link for "${variantData.product.title} - ${variantData.title}"`);
 
+      // Debug: Log raw metafield data
+      console.log('  Raw songwriter metafield:', JSON.stringify(variantData.product.songwriter, null, 2));
+      console.log('  Raw beatProduzent metafield:', JSON.stringify(variantData.product.beatProduzent, null, 2));
+
       // Parse authors from metaobjects
       const songwriters = parseAuthors(variantData.product.songwriter);
       const beatProduzenten = parseAuthors(variantData.product.beatProduzent);
 
-      console.log(`  Songwriters: ${songwriters.length}, Beat-Produzenten: ${beatProduzenten.length}`);
+      console.log(`  Parsed Songwriters: ${songwriters.length}`, songwriters);
+      console.log(`  Parsed Beat-Produzenten: ${beatProduzenten.length}`, beatProduzenten);
 
       downloads.push({
         productTitle: variantData.product.title,
