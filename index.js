@@ -40,7 +40,6 @@ Ohne ausdrückliche, schriftliche Zustimmung des Autors ist es nicht erlaubt:
 3. Urheberrecht / GEMA
 Der ursprüngliche Autor des Songtexts bleibt verpflichtend als Songwriter bei der GEMA (oder anderen Verwertungsgesellschaften) eingetragen, sofern das Werk dort angemeldet wird.
 Eine vollständige Übertragung der Urheberrechte findet nicht statt.
-Die vollständigen Angaben zu den bei der GEMA einzutragenden Urhebern befinden sich in der beigefügten Downloaddatei.
 
 4. Digitaler Download & Widerruf
 Da es sich um ein digitales Produkt handelt, erlischt das Widerrufsrecht, sobald der Käufer den Download begonnen hat.
@@ -81,7 +80,6 @@ Ohne vorherige schriftliche Zustimmung der Urheber ist es nicht erlaubt:
 Der ursprüngliche Songwriter bleibt verpflichtend als Urheber bei einer möglichen GEMA-Anmeldung eingetragen.
 Der Beat-Produzent bleibt ebenfalls als Urheber seines Beats einzutragen.
 Es findet keine Übertragung des Urheberrechts statt – lediglich Nutzungsrechte werden eingeräumt.
-Die vollständigen Angaben zu den bei der GEMA einzutragenden Urhebern befinden sich in der beigefügten Downloaddatei.
 
 4. Exklusivität
 Der Songtext wird ab dem Kauf sofort aus dem Verkauf genommen und nicht erneut an andere Kunden verkauft.
@@ -158,7 +156,40 @@ async function generateLicensePDF(licenseData, logoBuffer) {
     doc.text(`E-Mail: ${licenseData.customerEmail}`);
     doc.text(`Kaufdatum: ${licenseData.purchaseDate}`);
     doc.text(`Bestellnummer: ${licenseData.orderNumber}`);
-    doc.moveDown(1.5);
+    doc.moveDown(1);
+
+    // GEMA Authors Section
+    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown(1);
+    doc.fontSize(11).font('Helvetica-Bold').text('GEMA-Urheber');
+    doc.moveDown(0.5);
+    doc.fontSize(10).font('Helvetica');
+
+    // Songwriter
+    if (licenseData.songwriters && licenseData.songwriters.length > 0) {
+      doc.font('Helvetica-Bold').text('Songwriter:', { continued: false });
+      doc.font('Helvetica');
+      licenseData.songwriters.forEach(author => {
+        const name = author.name || 'Unbekannt';
+        const gemaNum = author.gema_nummer ? ` (GEMA-Nr: ${author.gema_nummer})` : '';
+        doc.text(`  • ${name}${gemaNum}`);
+      });
+      doc.moveDown(0.5);
+    }
+
+    // Beat-Produzenten (only for "Mit Beat" license)
+    if (licenseData.licenseType === 'Mit Beat' && licenseData.beatProduzenten && licenseData.beatProduzenten.length > 0) {
+      doc.font('Helvetica-Bold').text('Beat-Produzent:', { continued: false });
+      doc.font('Helvetica');
+      licenseData.beatProduzenten.forEach(author => {
+        const name = author.name || 'Unbekannt';
+        const gemaNum = author.gema_nummer ? ` (GEMA-Nr: ${author.gema_nummer})` : '';
+        doc.text(`  • ${name}${gemaNum}`);
+      });
+      doc.moveDown(0.5);
+    }
+
+    doc.moveDown(0.5);
 
     // Horizontal line
     doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
@@ -224,6 +255,30 @@ async function getDownloadLink(variantId) {
         title
         product {
           title
+          songwriter: metafield(namespace: "custom", key: "songwriter") {
+            references(first: 10) {
+              nodes {
+                ... on Metaobject {
+                  fields {
+                    key
+                    value
+                  }
+                }
+              }
+            }
+          }
+          beatProduzent: metafield(namespace: "custom", key: "beat_produzent") {
+            references(first: 10) {
+              nodes {
+                ... on Metaobject {
+                  fields {
+                    key
+                    value
+                  }
+                }
+              }
+            }
+          }
         }
         metafield(namespace: "custom", key: "download_link") {
           value
@@ -234,6 +289,19 @@ async function getDownloadLink(variantId) {
 
   const result = await shopifyGraphQL(query, { id: variantId });
   return result.data?.productVariant;
+}
+
+// Helper function to parse metaobject authors
+function parseAuthors(metafieldData) {
+  if (!metafieldData?.references?.nodes) return [];
+
+  return metafieldData.references.nodes.map(node => {
+    const fields = {};
+    node.fields.forEach(field => {
+      fields[field.key] = field.value;
+    });
+    return fields;
+  });
 }
 
 // ============================================
@@ -352,7 +420,9 @@ ${SHOP_NAME}
       customerName: customerFullName,
       customerEmail: customerEmail,
       purchaseDate: orderDate,
-      orderNumber: orderNumber
+      orderNumber: orderNumber,
+      songwriters: item.songwriters || [],
+      beatProduzenten: item.beatProduzenten || []
     };
 
     const pdfBuffer = await generateLicensePDF(licenseData, logoBuffer);
@@ -453,10 +523,18 @@ app.post('/webhooks/orders-paid', async (req, res) => {
     if (variantData?.metafield?.value) {
       console.log(`Found download link for "${variantData.product.title} - ${variantData.title}"`);
 
+      // Parse authors from metaobjects
+      const songwriters = parseAuthors(variantData.product.songwriter);
+      const beatProduzenten = parseAuthors(variantData.product.beatProduzent);
+
+      console.log(`  Songwriters: ${songwriters.length}, Beat-Produzenten: ${beatProduzenten.length}`);
+
       downloads.push({
         productTitle: variantData.product.title,
         variantTitle: variantData.title,
-        downloadLink: variantData.metafield.value
+        downloadLink: variantData.metafield.value,
+        songwriters: songwriters,
+        beatProduzenten: beatProduzenten
       });
     } else {
       console.log(`No download link for variant ${variantId}`);
@@ -514,10 +592,19 @@ app.post('/webhooks/orders-create', async (req, res) => {
 
     if (variantData?.metafield?.value) {
       console.log(`Found download link for "${variantData.product.title} - ${variantData.title}"`);
+
+      // Parse authors from metaobjects
+      const songwriters = parseAuthors(variantData.product.songwriter);
+      const beatProduzenten = parseAuthors(variantData.product.beatProduzent);
+
+      console.log(`  Songwriters: ${songwriters.length}, Beat-Produzenten: ${beatProduzenten.length}`);
+
       downloads.push({
         productTitle: variantData.product.title,
         variantTitle: variantData.title,
-        downloadLink: variantData.metafield.value
+        downloadLink: variantData.metafield.value,
+        songwriters: songwriters,
+        beatProduzenten: beatProduzenten
       });
     }
   }
