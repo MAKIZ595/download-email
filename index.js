@@ -256,6 +256,16 @@ async function getDownloadLink(variantId) {
         product {
           title
           songwriter: metafield(namespace: "custom", key: "songwriter") {
+            type
+            value
+            reference {
+              ... on Metaobject {
+                fields {
+                  key
+                  value
+                }
+              }
+            }
             references(first: 10) {
               nodes {
                 ... on Metaobject {
@@ -268,6 +278,16 @@ async function getDownloadLink(variantId) {
             }
           }
           beatProduzent: metafield(namespace: "custom", key: "beat_produzent") {
+            type
+            value
+            reference {
+              ... on Metaobject {
+                fields {
+                  key
+                  value
+                }
+              }
+            }
             references(first: 10) {
               nodes {
                 ... on Metaobject {
@@ -299,17 +319,33 @@ async function getDownloadLink(variantId) {
   return result.data?.productVariant;
 }
 
-// Helper function to parse metaobject authors
+// Helper function to parse metaobject authors (supports both single reference and list)
 function parseAuthors(metafieldData) {
-  if (!metafieldData?.references?.nodes) return [];
+  if (!metafieldData) return [];
 
-  return metafieldData.references.nodes.map(node => {
+  const authors = [];
+
+  // Check for single reference (metaobject_reference type)
+  if (metafieldData.reference?.fields) {
     const fields = {};
-    node.fields.forEach(field => {
+    metafieldData.reference.fields.forEach(field => {
       fields[field.key] = field.value;
     });
-    return fields;
-  });
+    authors.push(fields);
+  }
+
+  // Check for list of references (list.metaobject_reference type)
+  if (metafieldData.references?.nodes) {
+    metafieldData.references.nodes.forEach(node => {
+      const fields = {};
+      node.fields.forEach(field => {
+        fields[field.key] = field.value;
+      });
+      authors.push(fields);
+    });
+  }
+
+  return authors;
 }
 
 // ============================================
